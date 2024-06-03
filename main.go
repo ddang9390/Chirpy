@@ -19,7 +19,8 @@ func main() {
 
 	mux.Handle("/app/*", http.StripPrefix("/app", wrappedFileServer))
 
-	mux.HandleFunc("/metrics", apiCfg.hitsHandler)
+	mux.HandleFunc("GET /healthz", apiCfg.readyHandler)
+	mux.HandleFunc("GET /metrics", apiCfg.hitsHandler)
 	mux.HandleFunc("/reset", apiCfg.resetHandler)
 
 	server := http.Server{
@@ -49,4 +50,12 @@ func (cfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Resetting hits from %v to 0\n", cfg.fileserverHits) // Debug statement
 	cfg.fileserverHits = 0
 	w.Write([]byte("Hits counter reset to 0"))
+}
+
+func (cfg *apiConfig) readyHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(200)
+
+	ok := []byte("OK")
+	w.Write(ok)
 }
