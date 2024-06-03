@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 )
 
@@ -19,9 +20,9 @@ func main() {
 
 	mux.Handle("/app/*", http.StripPrefix("/app", wrappedFileServer))
 
-	mux.HandleFunc("GET /healthz", apiCfg.readyHandler)
-	mux.HandleFunc("GET /metrics", apiCfg.hitsHandler)
-	mux.HandleFunc("/reset", apiCfg.resetHandler)
+	mux.HandleFunc("GET /api/healthz", apiCfg.readyHandler)
+	mux.HandleFunc("GET /admin/metrics", apiCfg.hitsHandler)
+	mux.HandleFunc("/api/reset", apiCfg.resetHandler)
 
 	server := http.Server{
 		Addr:    ":8080",
@@ -42,8 +43,28 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 }
 
 func (cfg *apiConfig) hitsHandler(w http.ResponseWriter, r *http.Request) {
-	s := fmt.Sprintf("Hits: %v", cfg.fileserverHits)
-	w.Write([]byte(s))
+	w.Header().Add("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(200)
+
+	//html template
+	const htmlTemplate = `
+	<html>
+	<body>
+		<h1>Welcome, Chirpy Admin</h1>
+		<p>Chirpy has been visited {{.Count}} times!</p>
+	</body>
+	</html>
+	`
+	//parse the template
+	var tmpl = template.Must(template.New("metrics").Parse(htmlTemplate))
+
+	//inject data into that template
+	data := struct {
+		Count int
+	}{Count: cfg.fileserverHits}
+
+	tmpl.Execute(w, data)
+
 }
 
 func (cfg *apiConfig) resetHandler(w http.ResponseWriter, r *http.Request) {
