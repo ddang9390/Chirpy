@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -23,6 +24,8 @@ func main() {
 	mux.HandleFunc("GET /api/healthz", apiCfg.readyHandler)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.hitsHandler)
 	mux.HandleFunc("/api/reset", apiCfg.resetHandler)
+
+	mux.HandleFunc("/api/validate_chirp", apiCfg.jsonHandler)
 
 	server := http.Server{
 		Addr:    ":8080",
@@ -79,4 +82,51 @@ func (cfg *apiConfig) readyHandler(w http.ResponseWriter, r *http.Request) {
 
 	ok := []byte("OK")
 	w.Write(ok)
+}
+
+func (cfg *apiConfig) jsonHandler(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Body  string `json:"body"`
+		Error string `json:"error"`
+		Valid bool   `json:"valid"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err := decoder.Decode(&params)
+
+	errorString := ""
+	status := 200
+	valid := true
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if err != nil {
+		errorString = "Something went wrong"
+		status = 500
+		valid = false
+
+	}
+
+	if len(params.Body) > 140 {
+		errorString = "Chirp is too long"
+		status = 400
+		valid = false
+	}
+
+	respBody := parameters{
+		Body:  params.Body,
+		Error: errorString,
+		Valid: valid,
+	}
+	dat, err := json.Marshal(respBody)
+	if err != nil {
+		fmt.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.WriteHeader(status)
+	w.Write(dat)
+
 }
