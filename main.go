@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 )
 
 type apiConfig struct {
@@ -86,9 +87,10 @@ func (cfg *apiConfig) readyHandler(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) jsonHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
-		Body  string `json:"body"`
-		Error string `json:"error"`
-		Valid bool   `json:"valid"`
+		Body         string `json:"body"`
+		Error        string `json:"error"`
+		Valid        bool   `json:"valid"`
+		Cleaned_body string `json:"cleaned_body"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -113,11 +115,12 @@ func (cfg *apiConfig) jsonHandler(w http.ResponseWriter, r *http.Request) {
 		status = 400
 		valid = false
 	}
-
+	cleanedBody := checkProfane(params.Body)
 	respBody := parameters{
-		Body:  params.Body,
-		Error: errorString,
-		Valid: valid,
+		Body:         params.Body,
+		Error:        errorString,
+		Valid:        valid,
+		Cleaned_body: cleanedBody,
 	}
 	dat, err := json.Marshal(respBody)
 	if err != nil {
@@ -129,4 +132,22 @@ func (cfg *apiConfig) jsonHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(status)
 	w.Write(dat)
 
+}
+
+func checkProfane(body string) string {
+	badWords := [3]string{"kerfuffle", "sharbert", "fornax"}
+	bodyText := strings.Split(body, " ")
+
+	result := []string{}
+	for _, word := range bodyText {
+		for _, badWord := range badWords {
+			if strings.ToLower(word) == badWord {
+				word = "****"
+				break
+			}
+		}
+		result = append(result, word)
+	}
+
+	return strings.Join(result, " ")
 }
