@@ -12,9 +12,10 @@ type apiConfig struct {
 	fileserverHits int
 }
 
+var id int = 0
+
 func main() {
 	apiCfg := &apiConfig{}
-
 	mux := http.NewServeMux()
 
 	fileServer := http.FileServer(http.Dir("."))
@@ -26,7 +27,10 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", apiCfg.hitsHandler)
 	mux.HandleFunc("/api/reset", apiCfg.resetHandler)
 
-	mux.HandleFunc("/api/validate_chirp", apiCfg.jsonHandler)
+	//mux.HandleFunc("/api/validate_chirp", apiCfg.jsonHandler)
+
+	mux.HandleFunc("POST /api/chirps", apiCfg.jsonHandler)
+	mux.HandleFunc("GET /api/chirps", apiCfg.getHandler)
 
 	server := http.Server{
 		Addr:    ":8080",
@@ -87,6 +91,7 @@ func (cfg *apiConfig) readyHandler(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) jsonHandler(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
+		Id           int    `json:"id"`
 		Body         string `json:"body"`
 		Error        string `json:"error"`
 		Valid        bool   `json:"valid"`
@@ -121,7 +126,10 @@ func (cfg *apiConfig) jsonHandler(w http.ResponseWriter, r *http.Request) {
 		Error:        errorString,
 		Valid:        valid,
 		Cleaned_body: cleanedBody,
+		Id:           id,
 	}
+	id++
+
 	dat, err := json.Marshal(respBody)
 	if err != nil {
 		fmt.Printf("Error marshalling JSON: %s", err)
@@ -150,4 +158,24 @@ func checkProfane(body string) string {
 	}
 
 	return strings.Join(result, " ")
+}
+
+func (cfg *apiConfig) getHandler(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Id           int    `json:"id"`
+		Body         string `json:"body"`
+		Error        string `json:"error"`
+		Valid        bool   `json:"valid"`
+		Cleaned_body string `json:"cleaned_body"`
+	}
+
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err := decoder.Decode(&params)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 }
