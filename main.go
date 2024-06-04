@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -12,8 +13,6 @@ type apiConfig struct {
 	fileserverHits int
 }
 
-var id int = 0
-
 func main() {
 	apiCfg := &apiConfig{}
 	mux := http.NewServeMux()
@@ -21,16 +20,27 @@ func main() {
 	fileServer := http.FileServer(http.Dir("."))
 	wrappedFileServer := apiCfg.middlewareMetricsInc(fileServer)
 
+	db, err := NewDB("database.json")
+	if err != nil {
+		log.Fatalf("failed to initialize database: %v", err)
+	}
+
 	mux.Handle("/app/*", http.StripPrefix("/app", wrappedFileServer))
 
 	mux.HandleFunc("GET /api/healthz", apiCfg.readyHandler)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.hitsHandler)
 	mux.HandleFunc("/api/reset", apiCfg.resetHandler)
 
-	//mux.HandleFunc("/api/validate_chirp", apiCfg.jsonHandler)
-
-	mux.HandleFunc("POST /api/chirps", apiCfg.jsonHandler)
-	mux.HandleFunc("GET /api/chirps", apiCfg.getHandler)
+	mux.HandleFunc("/api/chirps", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			getHandler(db).ServeHTTP(w, r)
+		case http.MethodPost:
+			postHandler(db).ServeHTTP(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
 	server := http.Server{
 		Addr:    ":8080",
@@ -126,9 +136,7 @@ func (cfg *apiConfig) jsonHandler(w http.ResponseWriter, r *http.Request) {
 		Error:        errorString,
 		Valid:        valid,
 		Cleaned_body: cleanedBody,
-		Id:           id,
 	}
-	id++
 
 	dat, err := json.Marshal(respBody)
 	if err != nil {
@@ -160,22 +168,40 @@ func checkProfane(body string) string {
 	return strings.Join(result, " ")
 }
 
-func (cfg *apiConfig) getHandler(w http.ResponseWriter, r *http.Request) {
-	type parameters struct {
-		Id           int    `json:"id"`
-		Body         string `json:"body"`
-		Error        string `json:"error"`
-		Valid        bool   `json:"valid"`
-		Cleaned_body string `json:"cleaned_body"`
+func getHandler(db *DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Step 1: Call GetChirps to fetch all chirps from the database
+		chirps, err := db.GetChirps()
+		if err != nil {
+			http.Error(w, "Could not retrieve chirps", http.StatusInternalServerError)
+			return
+		}
+
+		// Step 2: Respond with the list of chirps in JSON format
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(chirps)
 	}
+}
 
-	decoder := json.NewDecoder(r.Body)
-	params := parameters{}
-	err := decoder.Decode(&params)
+func postHandler(db *DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Step 1: Read and validate the request body
+		var reqBody map[string]string
+		err := json.NewDecoder(r.Body).Decode(&reqBody)
+		if err != nil || reqBody["body"] == "" {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
 
-	if err != nil {
-		fmt.Println(err)
-		return
+		// Step 2: Call CreateChirp with the body content
+		chirp, err := db.CreateChirp(reqBody["body"])
+		if err != nil {
+			http.Error(w, "Could not create chirp", http.StatusInternalServerError)
+			return
+		}
+
+		// Step 3: Respond with the created chirp
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(chirp)
 	}
-
 }
