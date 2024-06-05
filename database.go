@@ -17,8 +17,14 @@ type Chirp struct {
 	Body string `json:"body"`
 }
 
+type User struct {
+	ID    int    `json:"id"`
+	Email string `json:"email"`
+}
+
 type DBStructure struct {
 	Chirps map[int]Chirp `json:"chirps"`
+	Users  map[int]User  `json:"users"`
 }
 
 // NewDB creates a new database connection
@@ -67,6 +73,33 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 	return newChirp, nil
 }
 
+func (db *DB) CreateUser(body string) (User, error) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	// Load the database from the file
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return User{}, err
+	}
+
+	newID := len(dbStructure.Users) + 1
+
+	newUser := User{
+		ID:    newID,
+		Email: body,
+	}
+
+	dbStructure.Users[newID] = newUser
+
+	err = db.writeDB(dbStructure)
+	if err != nil {
+		return User{}, err
+	}
+
+	return newUser, nil
+}
+
 // GetChirps returns all chirps in the database
 func (db *DB) GetChirps() ([]Chirp, error) {
 	// Read the database file
@@ -102,6 +135,7 @@ func (db *DB) ensureDB() error {
 		// If not, create a new database file with an empty chirps map
 		emptyDB := DBStructure{
 			Chirps: make(map[int]Chirp),
+			Users:  make(map[int]User),
 		}
 		return db.writeDB(emptyDB)
 	}

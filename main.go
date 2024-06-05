@@ -49,6 +49,8 @@ func main() {
 
 	r.HandleFunc("/api/chirps/{chirpID}", getChirp(db)).Methods("GET")
 
+	r.HandleFunc("/api/users", postUsers(db)).Methods("POST")
+
 	http.Handle("/", r)
 
 	http.ListenAndServe(":8080", r)
@@ -233,5 +235,25 @@ func getChirp(db *DB) http.HandlerFunc {
 			w.WriteHeader(404)
 
 		}
+	}
+}
+
+func postUsers(db *DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var reqBody map[string]string
+		err := json.NewDecoder(r.Body).Decode(&reqBody)
+		if err != nil || reqBody["email"] == "" {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+
+		user, err := db.CreateUser(reqBody["email"])
+		if err != nil {
+			http.Error(w, "Could not create user", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(user)
 	}
 }
