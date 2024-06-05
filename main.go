@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -17,6 +19,8 @@ type apiConfig struct {
 }
 
 func main() {
+	debugCode()
+
 	apiCfg := &apiConfig{}
 	r := mux.NewRouter()
 
@@ -255,5 +259,20 @@ func postUsers(db *DB) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(user)
+	}
+}
+
+func debugCode() {
+	dbg := flag.Bool("debug", false, "Enable debug mode")
+	flag.Parse()
+
+	if *dbg {
+		err := os.Remove("database.json")
+		if err != nil {
+			// Handle error if the file doesn't exist or couldn't be deleted
+			fmt.Println("Error deleting database:", err)
+		} else {
+			fmt.Println("Database deleted successfully!")
+		}
 	}
 }
