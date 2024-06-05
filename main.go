@@ -6,7 +6,10 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 type apiConfig struct {
@@ -15,7 +18,9 @@ type apiConfig struct {
 
 func main() {
 	apiCfg := &apiConfig{}
-	mux := http.NewServeMux()
+	r := mux.NewRouter()
+
+	//mux := http.NewServeMux()
 
 	fileServer := http.FileServer(http.Dir("."))
 	wrappedFileServer := apiCfg.middlewareMetricsInc(fileServer)
@@ -25,13 +30,13 @@ func main() {
 		log.Fatalf("failed to initialize database: %v", err)
 	}
 
-	mux.Handle("/app/*", http.StripPrefix("/app", wrappedFileServer))
+	r.Handle("/app/*", http.StripPrefix("/app", wrappedFileServer))
 
-	mux.HandleFunc("GET /api/healthz", apiCfg.readyHandler)
-	mux.HandleFunc("GET /admin/metrics", apiCfg.hitsHandler)
-	mux.HandleFunc("/api/reset", apiCfg.resetHandler)
+	r.HandleFunc("GET /api/healthz", apiCfg.readyHandler)
+	r.HandleFunc("GET /admin/metrics", apiCfg.hitsHandler)
+	r.HandleFunc("/api/reset", apiCfg.resetHandler)
 
-	mux.HandleFunc("/api/chirps", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/api/chirps", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			getHandler(db).ServeHTTP(w, r)
@@ -42,12 +47,11 @@ func main() {
 		}
 	})
 
-	server := http.Server{
-		Addr:    ":8080",
-		Handler: mux,
-	}
+	r.HandleFunc("/api/chirps/{chirpID}", getChirp(db)).Methods("GET")
 
-	server.ListenAndServe()
+	http.Handle("/", r)
+
+	http.ListenAndServe(":8080", r)
 
 }
 
@@ -203,5 +207,31 @@ func postHandler(db *DB) http.HandlerFunc {
 		// Step 3: Respond with the created chirp
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(chirp)
+	}
+}
+
+func getChirp(db *DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		chirps, err := db.loadDB()
+		if err != nil {
+			http.Error(w, "Issue getting chirps", 404)
+			return
+		}
+
+		vars := mux.Vars(r)
+		chirpIDStr := vars["chirpID"]
+		chirpID, err := strconv.Atoi(chirpIDStr)
+		if err != nil {
+			http.Error(w, "Invalid chirp ID", 404)
+			return
+		}
+		chirp, found := chirps.Chirps[chirpID]
+		if found {
+			w.WriteHeader(200)
+			json.NewEncoder(w).Encode(chirp)
+		} else {
+			w.WriteHeader(404)
+
+		}
 	}
 }
