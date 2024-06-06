@@ -18,13 +18,14 @@ type Chirp struct {
 }
 
 type User struct {
-	ID    int    `json:"id"`
-	Email string `json:"email"`
+	ID       int    `json:"id"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type DBStructure struct {
-	Chirps map[int]Chirp `json:"chirps"`
-	Users  map[int]User  `json:"users"`
+	Chirps map[int]Chirp   `json:"chirps"`
+	Users  map[string]User `json:"users"`
 }
 
 // NewDB creates a new database connection
@@ -73,33 +74,6 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 	return newChirp, nil
 }
 
-func (db *DB) CreateUser(body string) (User, error) {
-	db.mux.Lock()
-	defer db.mux.Unlock()
-
-	// Load the database from the file
-	dbStructure, err := db.loadDB()
-	if err != nil {
-		return User{}, err
-	}
-
-	newID := len(dbStructure.Users) + 1
-
-	newUser := User{
-		ID:    newID,
-		Email: body,
-	}
-
-	dbStructure.Users[newID] = newUser
-
-	err = db.writeDB(dbStructure)
-	if err != nil {
-		return User{}, err
-	}
-
-	return newUser, nil
-}
-
 // GetChirps returns all chirps in the database
 func (db *DB) GetChirps() ([]Chirp, error) {
 	// Read the database file
@@ -135,11 +109,44 @@ func (db *DB) ensureDB() error {
 		// If not, create a new database file with an empty chirps map
 		emptyDB := DBStructure{
 			Chirps: make(map[int]Chirp),
-			Users:  make(map[int]User),
+			Users:  make(map[string]User),
 		}
 		return db.writeDB(emptyDB)
 	}
 	return err
+}
+
+func (db *DB) CreateUser(body map[string]string) (User, error) {
+	db.mux.Lock()
+	defer db.mux.Unlock()
+
+	// Load the database from the file
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return User{}, err
+	}
+	newID := len(dbStructure.Chirps) + 1
+
+	newUser := User{
+		ID:       newID,
+		Email:    body["email"],
+		Password: body["password"],
+	}
+
+	//TODO: input code to prevent creation of user with same email
+	// _, ok := dbStructure.Users[newUser.Email]
+	// if(ok){
+	// 	return nil, nil
+	// }
+
+	dbStructure.Users[newUser.Email] = newUser
+
+	err = db.writeDB(dbStructure)
+	if err != nil {
+		return User{}, err
+	}
+
+	return newUser, nil
 }
 
 // loadDB reads the database file into memory
