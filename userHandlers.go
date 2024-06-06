@@ -30,10 +30,12 @@ func postUsers(db *DB) http.HandlerFunc {
 		}
 
 		user.Password = string(encPW)
+		user.Expires_in_seconds = 2
 
 		response := map[string]interface{}{
-			"id":    user.ID,
-			"email": user.Email,
+			"id":                 user.ID,
+			"email":              user.Email,
+			"expires_in_seconds": user.Expires_in_seconds,
 		}
 
 		w.WriteHeader(http.StatusCreated)
