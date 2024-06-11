@@ -6,9 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
@@ -58,7 +56,9 @@ func main() {
 	r.HandleFunc("/api/chirps/{chirpID}", getChirp(db)).Methods("GET")
 
 	r.HandleFunc("/api/users", postUsers(db)).Methods("POST")
-	r.HandleFunc("/api/login", loginUser(db)).Methods("POST")
+	r.HandleFunc("/api/users", updateUser(db, apiCfg)).Methods("PUT")
+
+	r.HandleFunc("/api/login", loginUser(db, apiCfg)).Methods("POST")
 
 	http.Handle("/", r)
 
@@ -79,20 +79,4 @@ func debugCode() {
 			fmt.Println("Database deleted successfully!")
 		}
 	}
-}
-
-func jwtCreation(user User) {
-	type customClaims struct {
-		jwt.RegisteredClaims
-	}
-
-	claims := customClaims{
-		jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(user.Expires_in_seconds) * time.Second)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    "chirpy",
-			Subject:   fmt.Sprint(user.ID),
-		},
-	}
-	jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 }

@@ -18,15 +18,15 @@ type Chirp struct {
 }
 
 type User struct {
-	ID                 int    `json:"id"`
+	ID                 int64  `json:"id"`
 	Email              string `json:"email"`
 	Password           string `json:"password"`
-	Expires_in_seconds int    `json:"expires_in_seconds"`
+	Expires_in_seconds int64  `json:"expires_in_seconds,omitempty"`
 }
 
 type DBStructure struct {
-	Chirps map[int]Chirp   `json:"chirps"`
-	Users  map[string]User `json:"users"`
+	Chirps map[int]Chirp  `json:"chirps"`
+	Users  map[int64]User `json:"users"`
 }
 
 // NewDB creates a new database connection
@@ -110,7 +110,7 @@ func (db *DB) ensureDB() error {
 		// If not, create a new database file with an empty chirps map
 		emptyDB := DBStructure{
 			Chirps: make(map[int]Chirp),
-			Users:  make(map[string]User),
+			Users:  make(map[int64]User),
 		}
 		return db.writeDB(emptyDB)
 	}
@@ -126,7 +126,7 @@ func (db *DB) CreateUser(body map[string]string) (User, error) {
 	if err != nil {
 		return User{}, err
 	}
-	newID := len(dbStructure.Chirps) + 1
+	newID := int64(len(dbStructure.Chirps) + 1)
 
 	newUser := User{
 		ID:       newID,
@@ -134,13 +134,7 @@ func (db *DB) CreateUser(body map[string]string) (User, error) {
 		Password: body["password"],
 	}
 
-	//TODO: input code to prevent creation of user with same email
-	// _, ok := dbStructure.Users[newUser.Email]
-	// if(ok){
-	// 	return nil, nil
-	// }
-
-	dbStructure.Users[newUser.Email] = newUser
+	dbStructure.Users[newUser.ID] = newUser
 
 	err = db.writeDB(dbStructure)
 	if err != nil {
