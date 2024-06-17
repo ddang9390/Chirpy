@@ -1,8 +1,11 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,7 +31,22 @@ func jwtValidate(r *http.Request, secret string) (*customClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil
 	})
+
 	if err != nil {
+		// users, _ := db.loadDB()
+
+		// for _, user := range users.Users {
+		// 	if user.Token == tokenString {
+		// 		claims := customClaims{
+		// 			jwt.RegisteredClaims{
+		// 				IssuedAt: jwt.NewNumericDate(time.Now()),
+		// 				Issuer:   "chirpy",
+		// 				Subject:  fmt.Sprint(user.ID),
+		// 			},
+		// 		}
+		// 		return &claims, nil
+		// 	}
+		// }
 		return nil, err
 	}
 	if !token.Valid {
@@ -69,4 +87,35 @@ func jwtCreation(user User, secret string) string {
 	}
 
 	return signedToken
+}
+
+func generateRefreshToken() string {
+	b := make([]byte, 32)
+	ranData, err := rand.Read(b)
+	if err != nil {
+		fmt.Println("error:", err)
+		return ""
+	}
+
+	bs := []byte(strconv.Itoa(ranData))
+	secret := hex.EncodeToString(bs)
+	return secret
+
+	// claims := customClaims{
+	// 	jwt.RegisteredClaims{
+	// 		IssuedAt: jwt.NewNumericDate(time.Now()),
+	// 		Issuer:   "chirpy",
+	// 	},
+	// }
+	// expiresInSeconds := int64(86400 * 60) //seconds in 60 days
+	// claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Duration(expiresInSeconds) * time.Second))
+
+	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	// signedToken, err := token.SignedString([]byte(secret))
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return err.Error()
+	// }
+
+	// return signedToken
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -75,8 +76,6 @@ func loginUser(db *DB, cfg *apiConfig) http.HandlerFunc {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return
 		}
-		fmt.Println(user)
-		fmt.Println(reqBody)
 
 		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(reqBody.Password))
 		if err != nil {
@@ -85,14 +84,23 @@ func loginUser(db *DB, cfg *apiConfig) http.HandlerFunc {
 			return
 		}
 
+		expiresInSeconds := int64(86400 * 60) //seconds in 60 days
+		user.Expires_in_seconds = expiresInSeconds
 		user.Expires_in_seconds = reqBody.Expires_in_seconds
 
 		token := jwtCreation(user, cfg.jwtSecret)
+		refreshToken := generateRefreshToken()
+
+		user.Token = refreshToken
+
+		users.Users[user.ID] = user
+		db.writeDB(users)
 
 		response := map[string]interface{}{
-			"id":    user.ID,
-			"email": user.Email,
-			"token": token,
+			"id":            user.ID,
+			"email":         user.Email,
+			"token":         token,
+			"refresh_token": refreshToken,
 		}
 
 		w.WriteHeader(200)
@@ -112,6 +120,7 @@ func updateUser(db *DB, cfg *apiConfig) http.HandlerFunc {
 		}
 
 		claims, err := jwtValidate(r, cfg.jwtSecret)
+		fmt.Println(claims)
 		if err != nil {
 			fmt.Println(err)
 			w.WriteHeader(401)
@@ -158,4 +167,66 @@ func updateUser(db *DB, cfg *apiConfig) http.HandlerFunc {
 		json.NewEncoder(w).Encode(response)
 
 	}
+}
+
+func refreshUser(w http.ResponseWriter, r *http.Request, db *DB, cfg *apiConfig) error {
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return fmt.Errorf("authorization header is required")
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+	users, _ := db.loadDB()
+	resp := ""
+
+	token := ""
+	for _, user := range users.Users {
+		if user.Token == tokenString {
+			resp = user.Token
+			token = jwtCreation(user, cfg.jwtSecret)
+		}
+	}
+
+	if resp != "" {
+		response := map[string]interface{}{
+			"token": token,
+		}
+		w.WriteHeader(200)
+		fmt.Println(response)
+		json.NewEncoder(w).Encode(response)
+
+	} else {
+		w.WriteHeader(401)
+	}
+
+	return nil
+
+}
+
+func revokeUser(w http.ResponseWriter, r *http.Request, db *DB) error {
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return fmt.Errorf("authorization header is required")
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+	users, _ := db.loadDB()
+
+	for _, user := range users.Users {
+		if user.Token == tokenString {
+			updatedUser := user
+			updatedUser.Token = ""
+
+			users.Users[user.ID] = updatedUser
+			db.writeDB(users)
+		}
+	}
+
+	w.WriteHeader(204)
+	return nil
+
 }

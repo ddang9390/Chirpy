@@ -22,6 +22,7 @@ type User struct {
 	Email              string `json:"email"`
 	Password           string `json:"password"`
 	Expires_in_seconds int64  `json:"expires_in_seconds,omitempty"`
+	Token              string `json:"token"`
 }
 
 type DBStructure struct {

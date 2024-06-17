@@ -59,6 +59,23 @@ func main() {
 	r.HandleFunc("/api/users", updateUser(db, apiCfg)).Methods("PUT")
 
 	r.HandleFunc("/api/login", loginUser(db, apiCfg)).Methods("POST")
+	r.HandleFunc("/api/refresh", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			refreshUser(w, r, db, apiCfg)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	r.HandleFunc("/api/revoke", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			revokeUser(w, r, db)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
 	http.Handle("/", r)
 
