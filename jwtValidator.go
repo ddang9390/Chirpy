@@ -33,20 +33,6 @@ func jwtValidate(r *http.Request, secret string) (*customClaims, error) {
 	})
 
 	if err != nil {
-		// users, _ := db.loadDB()
-
-		// for _, user := range users.Users {
-		// 	if user.Token == tokenString {
-		// 		claims := customClaims{
-		// 			jwt.RegisteredClaims{
-		// 				IssuedAt: jwt.NewNumericDate(time.Now()),
-		// 				Issuer:   "chirpy",
-		// 				Subject:  fmt.Sprint(user.ID),
-		// 			},
-		// 		}
-		// 		return &claims, nil
-		// 	}
-		// }
 		return nil, err
 	}
 	if !token.Valid {
@@ -100,22 +86,4 @@ func generateRefreshToken() string {
 	bs := []byte(strconv.Itoa(ranData))
 	secret := hex.EncodeToString(bs)
 	return secret
-
-	// claims := customClaims{
-	// 	jwt.RegisteredClaims{
-	// 		IssuedAt: jwt.NewNumericDate(time.Now()),
-	// 		Issuer:   "chirpy",
-	// 	},
-	// }
-	// expiresInSeconds := int64(86400 * 60) //seconds in 60 days
-	// claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Duration(expiresInSeconds) * time.Second))
-
-	// token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	// signedToken, err := token.SignedString([]byte(secret))
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return err.Error()
-	// }
-
-	// return signedToken
 }
