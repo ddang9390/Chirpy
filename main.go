@@ -54,6 +54,7 @@ func main() {
 	})
 
 	r.HandleFunc("/api/chirps/{chirpID}", getChirp(db)).Methods("GET")
+	r.HandleFunc("/api/chirps/{chirpID}", deleteChirp(db, apiCfg)).Methods("DELETE")
 
 	r.HandleFunc("/api/users", postUsers(db)).Methods("POST")
 	r.HandleFunc("/api/users", updateUser(db, apiCfg)).Methods("PUT")

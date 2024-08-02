@@ -144,3 +144,34 @@ func getChirp(db *DB) http.HandlerFunc {
 		}
 	}
 }
+
+func deleteChirp(db *DB, cfg *apiConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		chirps, err := db.loadDB()
+		if err != nil {
+			http.Error(w, "Issue getting chirps", 404)
+			return
+		}
+
+		claims, _ := jwtValidate(r, cfg.jwtSecret)
+
+		authorID := claims.Subject
+
+		vars := mux.Vars(r)
+		chirpIDStr := vars["chirpID"]
+		chirpID, err := strconv.Atoi(chirpIDStr)
+		if err != nil {
+			http.Error(w, "Invalid chirp ID", 404)
+			return
+		}
+		chirp, found := chirps.Chirps[chirpID]
+		if found {
+			if fmt.Sprint(chirp.Author_ID) == authorID {
+				delete(chirps.Chirps, chirp.ID)
+				w.WriteHeader(204)
+			} else {
+				w.WriteHeader(403)
+			}
+		}
+	}
+}
