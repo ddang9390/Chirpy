@@ -47,7 +47,7 @@ func main() {
 		case http.MethodGet:
 			getHandler(db).ServeHTTP(w, r)
 		case http.MethodPost:
-			postHandler(db).ServeHTTP(w, r)
+			postHandler(db, apiCfg).ServeHTTP(w, r)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}

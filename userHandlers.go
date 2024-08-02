@@ -120,7 +120,6 @@ func updateUser(db *DB, cfg *apiConfig) http.HandlerFunc {
 		}
 
 		claims, err := jwtValidate(r, cfg.jwtSecret)
-		fmt.Println(claims)
 		if err != nil {
 			fmt.Println(err)
 			w.WriteHeader(401)
