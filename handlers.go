@@ -17,6 +17,8 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 
 func getHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		authorId := r.URL.Query().Get("author_id")
+
 		// Step 1: Call GetChirps to fetch all chirps from the database
 		chirps, err := db.GetChirps()
 		if err != nil {
@@ -24,9 +26,21 @@ func getHandler(db *DB) http.HandlerFunc {
 			return
 		}
 
-		// Step 2: Respond with the list of chirps in JSON format
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(chirps)
+		if authorId != "" {
+			var matchedChirps []Chirp
+			for _, chirp := range chirps {
+				if fmt.Sprint(chirp.Author_ID) == authorId {
+					matchedChirps = append(matchedChirps, chirp)
+				}
+			}
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(matchedChirps)
+		} else {
+			// Step 2: Respond with the list of chirps in JSON format
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(chirps)
+		}
+
 	}
 }
 

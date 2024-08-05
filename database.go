@@ -139,7 +139,7 @@ func (db *DB) CreateUser(body map[string]string) (User, error) {
 	if err != nil {
 		return User{}, err
 	}
-	newID := int64(len(dbStructure.Chirps) + 1)
+	newID := int64(len(dbStructure.Users) + 1)
 
 	newUser := User{
 		ID:       newID,
