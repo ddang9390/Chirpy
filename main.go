@@ -14,17 +14,19 @@ import (
 type apiConfig struct {
 	fileserverHits int
 	jwtSecret      string
+	apiKey         string
 }
 
 func main() {
 	// by default, godotenv will look for a file named .env in the current directory
 	godotenv.Load()
 	jwtSecret := os.Getenv("JWT_SECRET")
+	apiKey := os.Getenv("ApiKey")
 
 	// clears database file whenever we run program to make testing faster
 	debugCode()
 
-	apiCfg := &apiConfig{jwtSecret: jwtSecret}
+	apiCfg := &apiConfig{jwtSecret: jwtSecret, apiKey: apiKey}
 	r := mux.NewRouter()
 
 	//mux := http.NewServeMux()
@@ -79,7 +81,7 @@ func main() {
 		}
 	})
 
-	r.HandleFunc("/api/polka/webhooks", polkaHandler(db)).Methods("POST")
+	r.HandleFunc("/api/polka/webhooks", polkaHandler(db, apiCfg)).Methods("POST")
 
 	http.Handle("/", r)
 

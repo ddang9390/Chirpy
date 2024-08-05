@@ -33,11 +33,13 @@ func postUsers(db *DB) http.HandlerFunc {
 
 		user.Password = string(encPW)
 		user.Expires_in_seconds = 20
+		user.Is_chirpy_red = false
 
 		response := map[string]interface{}{
 			"id":                 user.ID,
 			"email":              user.Email,
 			"expires_in_seconds": user.Expires_in_seconds,
+			"is_chirpy_red":      user.Is_chirpy_red,
 		}
 
 		w.WriteHeader(http.StatusCreated)
@@ -101,6 +103,7 @@ func loginUser(db *DB, cfg *apiConfig) http.HandlerFunc {
 			"email":         user.Email,
 			"token":         token,
 			"refresh_token": refreshToken,
+			"is_chirpy_red": user.Is_chirpy_red,
 		}
 
 		w.WriteHeader(200)
@@ -158,8 +161,9 @@ func updateUser(db *DB, cfg *apiConfig) http.HandlerFunc {
 		}
 
 		response := map[string]interface{}{
-			"id":    updatedUser.ID,
-			"email": updatedUser.Email,
+			"id":            updatedUser.ID,
+			"email":         updatedUser.Email,
+			"is_chirpy_red": updatedUser.Is_chirpy_red,
 		}
 
 		w.WriteHeader(200)
@@ -169,7 +173,6 @@ func updateUser(db *DB, cfg *apiConfig) http.HandlerFunc {
 }
 
 func refreshUser(w http.ResponseWriter, r *http.Request, db *DB, cfg *apiConfig) error {
-
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		return fmt.Errorf("authorization header is required")
@@ -205,7 +208,6 @@ func refreshUser(w http.ResponseWriter, r *http.Request, db *DB, cfg *apiConfig)
 }
 
 func revokeUser(w http.ResponseWriter, r *http.Request, db *DB) error {
-
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		return fmt.Errorf("authorization header is required")
@@ -228,4 +230,43 @@ func revokeUser(w http.ResponseWriter, r *http.Request, db *DB) error {
 	w.WriteHeader(204)
 	return nil
 
+}
+
+func polkaHandler(db *DB, cfg *apiConfig) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			w.WriteHeader(401)
+			return
+		}
+		keyString := strings.TrimPrefix(authHeader, "ApiKey ")
+		if keyString != cfg.apiKey {
+			w.WriteHeader(401)
+			return
+		}
+
+		var reqBody PolkaEvent
+		err := json.NewDecoder(r.Body).Decode(&reqBody)
+
+		if err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		event := reqBody.Event
+		id := reqBody.Data.UserID
+		users, _ := db.loadDB()
+		user := users.Users[id]
+
+		if event != "user.upgraded" {
+			w.WriteHeader(204)
+			return
+		} else {
+			user.Is_chirpy_red = true
+			users.Users[int64(id)] = user
+			db.writeDB(users)
+
+			w.WriteHeader(204)
+			return
+		}
+	}
 }
