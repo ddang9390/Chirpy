@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 )
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -18,6 +19,7 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 func getHandler(db *DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authorId := r.URL.Query().Get("author_id")
+		sortOrder := r.URL.Query().Get("sort")
 
 		// Step 1: Call GetChirps to fetch all chirps from the database
 		chirps, err := db.GetChirps()
@@ -33,13 +35,23 @@ func getHandler(db *DB) http.HandlerFunc {
 					matchedChirps = append(matchedChirps, chirp)
 				}
 			}
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(matchedChirps)
-		} else {
-			// Step 2: Respond with the list of chirps in JSON format
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(chirps)
+			chirps = matchedChirps
+
 		}
+
+		if sortOrder == "asc" {
+			sort.Slice(chirps, func(i, j int) bool {
+				return chirps[i].ID < chirps[j].ID
+			})
+		} else {
+			sort.Slice(chirps, func(i, j int) bool {
+				return chirps[i].ID > chirps[j].ID
+			})
+		}
+
+		// Step 2: Respond with the list of chirps in JSON format
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(chirps)
 
 	}
 }
