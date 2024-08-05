@@ -24,11 +24,21 @@ type User struct {
 	Password           string `json:"password"`
 	Expires_in_seconds int64  `json:"expires_in_seconds,omitempty"`
 	Token              string `json:"token"`
+	Is_chirpy_red      bool   `json:"is_chirpy_red"`
 }
 
 type DBStructure struct {
 	Chirps map[int]Chirp  `json:"chirps"`
 	Users  map[int64]User `json:"users"`
+}
+
+type PolkaEvent struct {
+	Event string    `json:"event"`
+	Data  EventData `json:"data"`
+}
+
+type EventData struct {
+	UserID int64 `json:"user_id"`
 }
 
 // NewDB creates a new database connection

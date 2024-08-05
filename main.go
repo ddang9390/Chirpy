@@ -21,6 +21,7 @@ func main() {
 	godotenv.Load()
 	jwtSecret := os.Getenv("JWT_SECRET")
 
+	// clears database file whenever we run program to make testing faster
 	debugCode()
 
 	apiCfg := &apiConfig{jwtSecret: jwtSecret}
@@ -77,6 +78,8 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	})
+
+	r.HandleFunc("/api/polka/webhooks", polkaHandler(db)).Methods("POST")
 
 	http.Handle("/", r)
 
